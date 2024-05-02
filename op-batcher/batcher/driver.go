@@ -150,6 +150,8 @@ func (l *BatchSubmitter) StopBatchSubmitting(ctx context.Context) error {
 func (l *BatchSubmitter) loadBlocksIntoState(ctx context.Context) error {
 	start, end, err := l.calculateL2BlockRangeToStore(ctx)
 	if err != nil {
+		l.Log.Warn("START BLOCK", "start", start.Number+1)
+		l.Log.Warn("END BLOCK", "end", end.Number+1)
 		l.Log.Warn("Error calculating L2 block range", "err", err)
 		return err
 	} else if start.Number >= end.Number {
@@ -161,6 +163,7 @@ func (l *BatchSubmitter) loadBlocksIntoState(ctx context.Context) error {
 	for i := start.Number + 1; i < end.Number+1; i++ {
 		block, err := l.loadBlockIntoState(ctx, i)
 		if errors.Is(err, ErrReorg) {
+
 			l.Log.Warn("Found L2 reorg", "block_number", i)
 			l.lastStoredBlock = eth.BlockID{}
 			return err
@@ -227,12 +230,18 @@ func (l *BatchSubmitter) calculateL2BlockRangeToStore(ctx context.Context) (eth.
 		l.Log.Info("Starting batch-submitter work at safe-head", "safe", syncStatus.SafeL2)
 		l.lastStoredBlock = syncStatus.SafeL2.ID()
 	} else if l.lastStoredBlock.Number < syncStatus.SafeL2.Number {
+		l.Log.Info("L2 SAFEHEAD l.lastStoredBlock.Number < syncStatus.SafeL2.Number", "safe", syncStatus.SafeL2.Number)
+		l.Log.Info("L2 UNSAFEHEAD", "unsafe", syncStatus.UnsafeL2.Number)
+		l.Log.Info("LastStoredBlock", "lastStoredBlock", l.lastStoredBlock.Number)
 		l.Log.Warn("last submitted block lagged behind L2 safe head: batch submission will continue from the safe head now", "last", l.lastStoredBlock, "safe", syncStatus.SafeL2)
 		l.lastStoredBlock = syncStatus.SafeL2.ID()
 	}
 
 	// Check if we should even attempt to load any blocks. TODO: May not need this check
 	if syncStatus.SafeL2.Number >= syncStatus.UnsafeL2.Number {
+		l.Log.Info("L2 SAFEHEAD syncStatus.SafeL2.Number >= syncStatus.UnsafeL2.Number", "safe", syncStatus.SafeL2.Number)
+		l.Log.Info("L2 UNSAFEHEAD", "unsafe", syncStatus.UnsafeL2.Number)
+		l.Log.Info("LastStoredBlock", "lastStoredBlock", l.lastStoredBlock.Number)
 		return eth.BlockID{}, eth.BlockID{}, errors.New("L2 safe head ahead of L2 unsafe head")
 	}
 
